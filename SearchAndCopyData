@@ -1,0 +1,85 @@
+Sub SearchAndCopyData()
+    
+    'set the main folder path where your files are located
+    Dim mainFolderPath As String
+    mainFolderPath = "C:\Users\Rowson Chen\Desktop\RF233\Test record"
+    
+    'set the search term to look for in the files (in this example, the vehicle plate)
+    Dim searchTerm As String
+    searchTerm = "KAC-192"
+    
+    'create a new workbook and sheet to copy the data to
+    Dim newWorkbook As Workbook
+    Set newWorkbook = Workbooks.Add
+    Dim newSheet As Worksheet
+    Set newSheet = newWorkbook.Sheets(1)
+    
+    'set the row and column where you want to start pasting the data
+    Dim pasteRow As Long
+    pasteRow = 1
+    Dim pasteColumn As Long
+    pasteColumn = 2
+    
+    'set the header row in the new sheet
+    newSheet.Cells(1, 1) = "File Name"
+    newSheet.Cells(1, 2) = "Data"
+    
+    'call the recursive function to search for files in all subfolders
+    SearchFilesInSubfolders mainFolderPath, searchTerm, newSheet, pasteRow, pasteColumn
+    
+    'save and close the new workbook
+    newWorkbook.SaveAs Filename:="C:\Users\Rowson Chen\Desktop\RF233\" & searchTerm & ".xlsx"
+    newWorkbook.Close
+    
+End Sub
+
+
+Sub SearchFilesInSubfolders(ByVal folderPath As String, ByVal searchTerm As String, ByRef newSheet As Worksheet, ByRef pasteRow As Long, ByRef pasteColumn As Long)
+    
+    'create a FileSystemObject to loop through all subfolders and files in the current folder
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    'loop through each file in the current folder
+    Dim file As Object
+    For Each file In fso.GetFolder(folderPath).Files
+        
+        'check if the file is an Excel file
+        If Right(file.Name, 4) = "xlsx" Or Right(file.Name, 3) = "xls" Then
+            
+            'open the file and set the sheet where the data is located
+            Dim dataWorkbook As Workbook
+            Set dataWorkbook = Workbooks.Open(file.Path)
+            Dim dataSheet As Worksheet
+            Set dataSheet = dataWorkbook.Sheets("Sheet1")
+            
+            'search for the search term in the first column of the data
+            Dim searchRange As Range
+            Set searchRange = dataSheet.Range("D1", "F" & dataSheet.Range("A1").End(xlDown).Row)
+            Dim foundCell As Range
+            Set foundCell = searchRange.Find(What:=searchTerm, LookIn:=xlValues, LookAt:=xlWhole)
+            
+            'if the search term is found, copy columns A to L of the row and paste it into the new sheet
+            If Not foundCell Is Nothing Then
+                'add the file name to the first column of the new row
+                newSheet.Cells(pasteRow, 1) = file.Name
+                'copy columns A to L of the row and paste it into the new sheet
+                dataSheet.Range("A" & foundCell.Row & ":L" & foundCell.Row).Copy newSheet.Cells(pasteRow, pasteColumn)
+                pasteRow = pasteRow + 1
+            End If
+            
+            'close the file
+            dataWorkbook.Close SaveChanges:=False
+            
+        End If
+            
+    
+    Next file
+    
+    'loop through each subfolder in the current folder and call the function recursively
+    Dim subFolder As Object
+    For Each subFolder In fso.GetFolder(folderPath).subfolders
+        SearchFilesInSubfolders subFolder.Path, searchTerm, newSheet, pasteRow, pasteColumn
+    Next subFolder
+    
+End Sub
